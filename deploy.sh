@@ -2,6 +2,12 @@
 
 set -o errexit -o pipefail
 
+untracked_files="$(git ls-files --others --exclude-standard)"
+if [[ -n "${untracked_files}" && -d "./${untracked_files}" ]]; then
+  echo "untracked files: ./${untracked_files}"
+  rm -rf "./${untracked_files}"
+fi
+
 changeSubgraph=$(find . -name '*.json' -not -path "./node_modules/*" | grep '[_a-zA-Z0-9-]*.\/[_a-zA-Z0-9-]*.\.json')
 
 for subgraph in ${changeSubgraph}; do
@@ -59,7 +65,7 @@ for subgraph in ${changeSubgraph}; do
     cd "${subgraphName}_${version}" || exit 1
     echo "update ${subgraph}: form ${lastVersion} to ${version} in the ${network}"
     if [ -f "yarn.lock" ]; then
-      yarn
+      yarn install
       yarn codegen
     else
       npm install
@@ -74,15 +80,16 @@ for subgraph in ${changeSubgraph}; do
       fi
     fi
     echo "Deploying subgraph ${subgraphName} to Graph node"
-    if npx graph deploy --ipfs "${ipfsUrl}" --node "${graphNodeUrl}" "${subgraphName}" >/dev/null 2>&1; then
-      echo "Deploying to Graph node"
-      echo "Deployed to $graphNodePubUrl/subgraphs/name/${subgraphName}/graphql"
-      echo "Subgraph endpoints:"
-      echo "Queries (HTTP): $graphNodePubUrl/subgraphs/name/${subgraphName}"
-      echo "Subscriptions (WS): $graphNodePubUrl/ws/subgraphs/name/${subgraphName}"
-    else
-      echo "Failed to deploy ${subgraphName}!"
-    fi
+    npx graph deploy --ipfs "${ipfsUrl}" --node "${graphNodeUrl}" "${subgraphName}"
+#    if npx graph deploy --ipfs "${ipfsUrl}" --node "${graphNodeUrl}" "${subgraphName}"; then
+#      echo "Deploying to Graph node"
+#      echo "Deployed to $graphNodePubUrl/subgraphs/name/${subgraphName}/graphql"
+#      echo "Subgraph endpoints:"
+#      echo "Queries (HTTP): $graphNodePubUrl/subgraphs/name/${subgraphName}"
+#      echo "Subscriptions (WS): $graphNodePubUrl/ws/subgraphs/name/${subgraphName}"
+#    else
+#      echo "Failed to deploy ${subgraphName}!"
+#    fi
     cd .. || exit 1
   done
 done
